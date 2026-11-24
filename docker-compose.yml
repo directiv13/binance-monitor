@@ -1,0 +1,24 @@
+services:
+  monitor:
+    build: .
+    image: binance-monitor:local
+    env_file: .env
+    restart: unless-stopped
+    stop_grace_period: 30s
+    volumes:
+      - monitor-data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      # The app rewrites /data/heartbeat every 15 s; the check fails if it is older than 60 s.
+      test: ["CMD", "python", "-m", "binance_monitor.healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  monitor-data:

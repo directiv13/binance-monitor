@@ -1,0 +1,27 @@
+# Production compose file: pulls the prebuilt image from GHCR instead of building locally.
+# Copy it to /opt/binance-monitor/docker-compose.yml on the VPS (next to your .env).
+#
+# The image name comes from $IMAGE (the CI deploy job exports it; for manual use put
+# IMAGE=ghcr.io/<owner>/binance-monitor:latest in the .env next to this file).
+services:
+  monitor:
+    image: ${IMAGE:-ghcr.io/OWNER/binance-monitor:latest}
+    env_file: .env
+    restart: unless-stopped
+    stop_grace_period: 30s
+    volumes:
+      - monitor-data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "python", "-m", "binance_monitor.healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  monitor-data:

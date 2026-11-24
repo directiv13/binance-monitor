@@ -1,0 +1,83 @@
+{
+  "order_trade_update": {
+    "e": "ORDER_TRADE_UPDATE",
+    "T": 1568879465651,
+    "E": 1568879465651,
+    "o": {
+      "s": "BTCUSDT", "c": "TEST", "S": "BUY", "o": "LIMIT", "f": "GTC",
+      "q": "0.015", "p": "64250.00", "ap": "0", "sp": "0", "x": "NEW", "X": "NEW",
+      "i": 8886774, "l": "0", "z": "0", "L": "0", "N": "USDT", "n": "0",
+      "T": 1568879465650, "t": 0, "b": "0", "a": "9.91", "m": false, "R": false,
+      "wt": "CONTRACT_PRICE", "ot": "LIMIT", "ps": "BOTH", "cp": false, "rp": "0",
+      "pP": false, "si": 0, "ss": 0, "V": "EXPIRE_TAKER", "pm": "NONE", "gtd": 0
+    }
+  },
+  "account_update": {
+    "e": "ACCOUNT_UPDATE",
+    "T": 1564745798939,
+    "E": 1564745798938,
+    "a": {
+      "m": "ORDER",
+      "B": [{"a": "USDT", "wb": "122624.12345678", "cw": "100.12345678", "bc": "50.12345678"}],
+      "P": [
+        {
+          "s": "BTCUSDT", "pa": "0.015", "ep": "64250.00000", "cr": "0", "up": "0.5",
+          "mt": "cross", "iw": "0", "ps": "BOTH", "ma": "USDT", "bep": "64251"
+        }
+      ]
+    }
+  },
+  "algo_update": {
+    "e": "ALGO_UPDATE",
+    "T": 1750515742297,
+    "E": 1750515742303,
+    "fs": "UM",
+    "ao": {
+      "caid": "Q5xaq5EGKgXXa0fD7fs0Ip", "aid": 2148719, "at": "CONDITIONAL",
+      "o": "STOP_MARKET", "s": "BNBUSDT", "S": "SELL", "ps": "BOTH", "f": "GTC",
+      "q": "0.01", "X": "NEW", "ai": "", "ap": "0.00000", "aq": "0.00000", "act": "0",
+      "tp": "750", "p": "0", "V": "EXPIRE_MAKER", "wt": "CONTRACT_PRICE", "pm": "NONE",
+      "cp": false, "pP": false, "R": true, "tt": 0, "gtd": 0, "rm": "", "ia": false
+    }
+  },
+  "listen_key_expired": {"e": "listenKeyExpired", "E": 1576653824250},
+  "open_orders": [
+    {
+      "orderId": 8886774, "symbol": "BTCUSDT", "status": "NEW", "clientOrderId": "TEST",
+      "price": "64250.00", "avgPrice": "0.00000", "origQty": "0.015", "executedQty": "0",
+      "cumQuote": "0", "timeInForce": "GTC", "type": "LIMIT", "reduceOnly": false,
+      "closePosition": false, "side": "BUY", "positionSide": "BOTH", "stopPrice": "0",
+      "workingType": "CONTRACT_PRICE", "origType": "LIMIT", "time": 1568879465650,
+      "updateTime": 1568879465650
+    }
+  ],
+  "open_algo_orders": [
+    {
+      "algoId": 2146760, "clientAlgoId": "6B2I9XVcJpCjqPAJ4YoFX7", "algoType": "CONDITIONAL",
+      "orderType": "TAKE_PROFIT", "symbol": "BNBUSDT", "side": "SELL", "positionSide": "BOTH",
+      "timeInForce": "GTC", "quantity": "0.01", "algoStatus": "NEW", "triggerPrice": "750.000",
+      "price": "750.000", "workingType": "CONTRACT_PRICE", "closePosition": false,
+      "priceProtect": false, "reduceOnly": false, "createTime": 1750485492076,
+      "updateTime": 1750485492076, "triggerTime": 0, "goodTillDate": 0
+    }
+  ],
+  "position_risk": [
+    {
+      "symbol": "BTCUSDT", "positionSide": "BOTH", "positionAmt": "0.015",
+      "entryPrice": "64250.0", "breakEvenPrice": "64251", "markPrice": "64300.00",
+      "unRealizedProfit": "0.75", "liquidationPrice": "50000", "isolatedMargin": "0",
+      "notional": "964.5", "marginAsset": "USDT", "updateTime": 1625474304765
+    },
+    {
+      "symbol": "ETHUSDT", "positionSide": "BOTH", "positionAmt": "0.000",
+      "entryPrice": "0.0", "markPrice": "3200.00", "unRealizedProfit": "0.00000000",
+      "updateTime": 0
+    }
+  ],
+  "exchange_info": {
+    "symbols": [
+      {"symbol": "BTCUSDT", "baseAsset": "BTC", "quoteAsset": "USDT", "pricePrecision": 2, "quantityPrecision": 3},
+      {"symbol": "ETHUSDT", "baseAsset": "ETH", "quoteAsset": "USDT", "pricePrecision": 2, "quantityPrecision": 3}
+    ]
+  }
+}
