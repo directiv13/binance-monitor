@@ -146,7 +146,7 @@ Message: LONG · 5x
          Realized PnL: +0.62 USDT
 ```
 
-- **Orders:** `NEW` → *new order*; `AMENDMENT` → *updated*; final status `FILLED / CANCELED / EXPIRED / EXPIRED_IN_MATCH / REJECTED` → *removed*, the title ends with the outcome (`… ORDER FILLED`, `… ORDER CANCELED`, …). `❌` is used for canceled orders only; filled and triggered orders get `🟢`, expired / rejected / no longer open (found on resync) get `⚠️`. **Partial fills are not posted**; they only update `filled_qty` and the pinned message.
+- **Orders:** `NEW` → *new order*; `AMENDMENT` → *updated*; final status `FILLED / CANCELED / EXPIRED / EXPIRED_IN_MATCH / REJECTED` → *removed*, the title ends with the outcome (`… ORDER FILLED`, `… ORDER CANCELED`, …). New, filled and triggered orders are marked by side: `🟢` long, `🔴` short (a flip counts as the side it ends on). `❌` is used for canceled orders only; expired / rejected / no longer open (found on resync) get `⚠️`. **Partial fills are not posted**; they only update `filled_qty` and the pinned message.
 - **Direction** (Open/Close Long/Short, Flip in one-way mode) is computed once, when the order is created, from the side / positionSide / reduceOnly / closePosition fields and the stored position, and reused for later messages.
 - **Positions** (from `ACCOUNT_UPDATE`): 0→non-zero = opened, non-zero→0 = closed, a one-way sign flip = closed then opened. Pure size changes only update the DB and the pinned message. Pushover is sent on open/close only. Realized PnL on close is summed from the closing trades' `rp` when available.
 - **Reconciliation** on every (re)connect and every `RECONCILE_SECONDS`: a fresh REST snapshot is diffed against the DB and anything missed is posted with `(detected on resync)`.

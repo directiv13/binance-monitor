@@ -56,18 +56,26 @@ def _quote_size_line(value: Decimal, info: SymbolInfo) -> str:
     return f"💵Size in {quote}: {fmt_usdt(value)} {quote}"
 
 
-# Icon of a removed order by reason; ❌ is reserved for canceled orders.
-_REMOVED_ICONS = {"filled": "🟢", "triggered": "🟢", "canceled": "❌"}
+def _side_icon(label: str) -> str:
+    """🔴 for short, 🟢 for long; a flip counts as the side it ends on."""
+    return "🔴" if label.endswith("SHORT") else "🟢"
 
 
 def _order_header(notice: OrderNotice, label: str) -> str:
-    """``🟢 CLOSE LONG ORDER`` / ``✏️ … UPDATED`` / ``🟢 … FILLED`` / ``❌ … CANCELED``."""
+    """``🟢 CLOSE LONG ORDER`` / ``✏️ … UPDATED`` / ``🔴 … SHORT ORDER FILLED`` / ``❌ … CANCELED``.
+
+    New, filled and triggered orders carry the side colour; ❌ is reserved for canceled orders.
+    """
     if notice.kind is OrderChangeKind.NEW:
-        return f"🟢 {label} ORDER"
+        return f"{_side_icon(label)} {label} ORDER"
     if notice.kind is OrderChangeKind.UPDATED:
         return f"✏️ {label} ORDER UPDATED"
     reason = notice.reason or "removed"
-    return f"{_REMOVED_ICONS.get(reason, '⚠️')} {label} ORDER {reason.upper()}"
+    if reason in ("filled", "triggered"):
+        icon = _side_icon(label)
+    else:
+        icon = "❌" if reason == "canceled" else "⚠️"
+    return f"{icon} {label} ORDER {reason.upper()}"
 
 
 def format_order(notice: OrderNotice, info: SymbolInfo) -> str:
@@ -132,9 +140,8 @@ def pushover_text(notice: PositionNotice, info: SymbolInfo) -> tuple[str, str]:
     """
     p = notice.position
     side = p.side_label
-    icon = "🟢" if side == "LONG" else "🔴"
     action = "OPEN" if notice.opened else "CLOSE"
-    title = f"{icon} {action} {side} · {p.symbol} · {notice.account}"
+    title = f"{_side_icon(side)} {action} {side} · {p.symbol} · {notice.account}"
     lines = [
         f"{side} · {p.leverage}x" if p.leverage else side,
         f"Entry price: {fmt_num(p.entry_price, info.price_precision)}",

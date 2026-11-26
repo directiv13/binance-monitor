@@ -1,5 +1,7 @@
 from decimal import Decimal
 
+import pytest
+
 from binance_monitor.binance.models import Order, SymbolInfo
 from binance_monitor.monitor.lifecycle import OrderChangeKind as K
 from binance_monitor.monitor.notices import OrderNotice, PositionNotice
@@ -90,7 +92,29 @@ def test_updated_and_removed_headers() -> None:
 def test_unknown_direction_falls_back_to_side() -> None:
     o = order(direction="", side="SELL", position_side="SHORT")
     text = format_order(OrderNotice(K.NEW, "a", o, Decimal("1")), BTC)
-    assert text.split("\n")[0] == "<b>🟢 SELL SHORT ORDER · a</b>"
+    assert text.split("\n")[0] == "<b>🔴 SELL SHORT ORDER · a</b>"
+
+
+@pytest.mark.parametrize(
+    ("direction", "icon"),
+    [
+        ("OPEN_LONG", "🟢"),
+        ("CLOSE_LONG", "🟢"),
+        ("OPEN_SHORT", "🔴"),
+        ("CLOSE_SHORT", "🔴"),
+        ("FLIP_LONG_SHORT", "🔴"),
+        ("FLIP_SHORT_LONG", "🟢"),
+    ],
+)
+def test_order_icon_follows_side(direction: str, icon: str) -> None:
+    def header(kind: K, reason: str | None = None) -> str:
+        n = OrderNotice(kind, "a", order(direction=direction), Decimal("64250"), reason)
+        return format_order(n, BTC).split("\n")[0]
+
+    assert header(K.NEW).startswith(f"<b>{icon} ")
+    assert header(K.REMOVED, "filled").startswith(f"<b>{icon} ")
+    assert header(K.REMOVED, "triggered").startswith(f"<b>{icon} ")
+    assert header(K.REMOVED, "canceled").startswith("<b>❌ ")
 
 
 def test_stop_price_type_and_market_price() -> None:
