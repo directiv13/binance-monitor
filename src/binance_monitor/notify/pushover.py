@@ -20,11 +20,33 @@ class PushoverResult(StrEnum):
     ERROR = "error"
 
 
+PRIORITY_EMERGENCY = 2
+
+
 class PushoverClient:
-    def __init__(self, http: httpx.AsyncClient, app_token: str, base_url: str) -> None:
+    """Thin Pushover API client.
+
+    Messages go out as *emergency* (priority 2) by default: Pushover then repeats the alert
+    every ``retry`` seconds until it is acknowledged or ``expire`` seconds have passed (both
+    are mandatory for priority 2 and are only sent in that case).
+    """
+
+    def __init__(
+        self,
+        http: httpx.AsyncClient,
+        app_token: str,
+        base_url: str,
+        *,
+        priority: int = PRIORITY_EMERGENCY,
+        retry_seconds: int = 60,
+        expire_seconds: int = 3600,
+    ) -> None:
         self._http = http
         self._token = app_token
         self._base = base_url.rstrip("/")
+        self._priority = priority
+        self._retry = retry_seconds
+        self._expire = expire_seconds
 
     async def _post(self, path: str, data: dict[str, str]) -> tuple[int, dict[str, Any]]:
         response = await self._http.post(
@@ -54,10 +76,17 @@ class PushoverClient:
         return self._classify(status, body)
 
     async def send(self, user_key: str, title: str, message: str) -> PushoverResult:
+        data = {
+            "user": user_key,
+            "title": title,
+            "message": message,
+            "priority": str(self._priority),
+        }
+        if self._priority == PRIORITY_EMERGENCY:
+            data["retry"] = str(self._retry)
+            data["expire"] = str(self._expire)
         try:
-            status, body = await self._post(
-                "/1/messages.json", {"user": user_key, "title": title, "message": message}
-            )
+            status, body = await self._post("/1/messages.json", data)
         except httpx.HTTPError as exc:
             log.warning("Pushover send failed: %s", type(exc).__name__)
             return PushoverResult.ERROR

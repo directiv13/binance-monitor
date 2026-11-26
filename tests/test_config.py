@@ -35,6 +35,23 @@ def test_defaults_and_admin_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
     assert s.binance_fapi_url == "https://fapi.binance.com"
     assert s.binance_fstream_url == "wss://fstream.binance.com"
     assert (s.pinned_refresh_seconds, s.reconcile_seconds, s.log_level) == (60, 300, "INFO")
+    assert (s.pushover_priority, s.pushover_retry_seconds, s.pushover_expire_seconds) == (
+        2,
+        60,
+        3600,
+    )
+
+
+def test_pushover_priority_and_emergency_timing_are_validated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert settings(monkeypatch, PUSHOVER_PRIORITY="-1").pushover_priority == -1
+    with pytest.raises(ValidationError):
+        settings(monkeypatch, PUSHOVER_PRIORITY="3")
+    with pytest.raises(ValidationError):
+        settings(monkeypatch, PUSHOVER_RETRY_SECONDS="10")  # Pushover minimum is 30
+    with pytest.raises(ValidationError):
+        settings(monkeypatch, PUSHOVER_EXPIRE_SECONDS="20000")  # Pushover maximum is 10800
 
 
 def test_bad_encryption_key_fails_with_clear_message(monkeypatch: pytest.MonkeyPatch) -> None:

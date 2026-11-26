@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     pushover_api_url: str = "https://api.pushover.net"
     telegram_api_url: str = "https://api.telegram.org"
 
+    # Pushover priority: 2 = emergency (repeats until acknowledged), -2..1 = quieter levels.
+    pushover_priority: int = Field(default=2, ge=-2, le=2)
+    # Emergency only: re-alert every N seconds (Pushover minimum 30) for at most M seconds (max 3h).
+    pushover_retry_seconds: int = Field(default=60, ge=30, le=10800)
+    pushover_expire_seconds: int = Field(default=3600, ge=30, le=10800)
+
     pinned_refresh_seconds: int = Field(default=60, ge=5)
     reconcile_seconds: int = Field(default=300, ge=10)
     log_level: str = "INFO"

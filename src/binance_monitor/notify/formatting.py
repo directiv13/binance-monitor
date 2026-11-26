@@ -51,22 +51,36 @@ def _size(order_qty: Decimal, info: SymbolInfo) -> str:
     return f"{fmt_qty(order_qty, info.quantity_precision)} {info.base_asset}"
 
 
+def _quote_size_line(value: Decimal, info: SymbolInfo) -> str:
+    quote = esc(info.quote_asset)
+    return f"💵Size in {quote}: {fmt_usdt(value)} {quote}"
+
+
+# Icon of a removed order by reason; ❌ is reserved for canceled orders.
+_REMOVED_ICONS = {"filled": "🟢", "triggered": "🟢", "canceled": "❌"}
+
+
+def _order_header(notice: OrderNotice, label: str) -> str:
+    """``🟢 CLOSE LONG ORDER`` / ``✏️ … UPDATED`` / ``🟢 … FILLED`` / ``❌ … CANCELED``."""
+    if notice.kind is OrderChangeKind.NEW:
+        return f"🟢 {label} ORDER"
+    if notice.kind is OrderChangeKind.UPDATED:
+        return f"✏️ {label} ORDER UPDATED"
+    reason = notice.reason or "removed"
+    return f"{_REMOVED_ICONS.get(reason, '⚠️')} {label} ORDER {reason.upper()}"
+
+
 def format_order(notice: OrderNotice, info: SymbolInfo) -> str:
     o: Order = notice.order
-    if notice.kind is OrderChangeKind.NEW:
-        header = "🟢 NEW ORDER"
-    elif notice.kind is OrderChangeKind.UPDATED:
-        header = "✏️ ORDER UPDATED"
-    else:
-        header = f"❌ ORDER REMOVED ({notice.reason or 'unknown'})"
-    title = f"<b>{esc(header)} · {esc(notice.account)}</b>"
+    label = direction_label(o.direction, fallback=f"{o.side} {o.position_side}")
+    title = f"<b>{esc(_order_header(notice, label))} · {esc(notice.account)}</b>"
     if notice.resync:
         title += f" {esc(RESYNC_LABEL)}"
 
-    label = direction_label(o.direction, fallback=f"{o.side} {o.position_side}")
-    line1 = f"{esc(o.symbol)} · {esc(label)} · {esc(o.type)}"
+    # The direction is already in the title; <code> makes the symbol tap-to-copy.
+    symbol_line = f"<code>{esc(o.symbol)}</code> · {esc(o.type)}"
     if o.is_algo:
-        line1 += " · conditional"
+        symbol_line += " · conditional"
 
     if o.price > 0:
         price_text = fmt_num(o.price, info.price_precision)
@@ -74,16 +88,15 @@ def format_order(notice: OrderNotice, info: SymbolInfo) -> str:
         price_text = f"market (~{fmt_num(notice.ref_price, info.price_precision)})"
     else:
         price_text = "market"
-    parts = [f"Price: {esc(price_text)}"]
+    lines = [f"💲Price: {esc(price_text)}"]
     if o.stop_price > 0:
-        parts.append(f"Stop: {esc(fmt_num(o.stop_price, info.price_precision))}")
-    usdt = o.qty * notice.ref_price if notice.ref_price > 0 else None
-    size = _size(o.qty, info)
-    size_text = f"{size} ({fmt_usdt(usdt)} {info.quote_asset})" if usdt is not None else size
-    parts.append(f"Size: {esc(size_text)}")
+        lines.append(f"🛑Stop: {esc(fmt_num(o.stop_price, info.price_precision))}")
+    lines.append(f"🤑Size: {esc(_size(o.qty, info))}")
+    if notice.ref_price > 0:
+        lines.append(_quote_size_line(o.qty * notice.ref_price, info))
     if o.filled_qty > 0 and notice.kind is not OrderChangeKind.NEW:
-        parts.append(f"Filled: {esc(fmt_qty(o.filled_qty, info.quantity_precision))}")
-    return "\n".join([title, line1, " · ".join(parts)])
+        lines.append(f"✅Filled: {esc(fmt_qty(o.filled_qty, info.quantity_precision))}")
+    return "\n".join([title, "", symbol_line, "", *lines])
 
 
 def format_position(notice: PositionNotice, info: SymbolInfo) -> str:
@@ -92,46 +105,50 @@ def format_position(notice: PositionNotice, info: SymbolInfo) -> str:
     title = f"<b>{icon} POSITION {word} · {esc(notice.account)}</b>"
     if notice.resync:
         title += f" {esc(RESYNC_LABEL)}"
-    size = abs(p.amount)
-    parts = [esc(p.symbol), esc(p.side_label)]
-    size_text = f"{fmt_qty(size, info.quantity_precision)} {info.base_asset}"
+    symbol_line = f"<code>{esc(p.symbol)}</code> · {esc(p.side_label)}"
+    if p.leverage:
+        symbol_line += f" · {p.leverage}x"
+    size_line = f"🤑Size: {esc(_size(abs(p.amount), info))}"
     if notice.opened:
-        notional = p.notional
-        parts.append(esc(f"{size_text} ({fmt_usdt(notional)} {info.quote_asset})"))
-        line = " · ".join(parts)
-        line += f" @ {esc(fmt_num(p.entry_price, info.price_precision))}"
-        if p.leverage:
-            line += f" · {p.leverage}x"
+        lines = [
+            f"💲Entry price: {esc(fmt_num(p.entry_price, info.price_precision))}",
+            size_line,
+            _quote_size_line(p.notional, info),
+        ]
     else:
-        parts.append(esc(size_text))
+        lines = [size_line]
         if notice.realized_pnl is not None:
-            parts.append(
-                f"realized PnL: {esc(fmt_signed(notice.realized_pnl))} {esc(info.quote_asset)}"
-            )
-        line = " · ".join(parts)
-    return f"{title}\n{line}"
+            pnl = f"{fmt_signed(notice.realized_pnl)} {info.quote_asset}"
+            lines.append(f"💰Realized PnL: {esc(pnl)}")
+    return "\n".join([title, "", symbol_line, "", *lines])
 
 
 def pushover_text(notice: PositionNotice, info: SymbolInfo) -> tuple[str, str]:
-    """(title, message) for Pushover (plain text, no HTML)."""
+    """(title, message) for Pushover (plain text, no HTML).
+
+    Title: ``🟢 OPEN LONG · BTCUSDT · main-acc`` (green = long, red = short).
+    Message: side and leverage, entry price, size in tokens and in USDT, then (after a blank
+    line) notes: the realized PnL of a close and the resync label.
+    """
     p = notice.position
-    word = "opened" if notice.opened else "closed"
-    title = f"Position {word} · {notice.account}"
-    size = f"{fmt_qty(abs(p.amount), info.quantity_precision)} {info.base_asset}"
-    if notice.opened:
-        message = (
-            f"{p.symbol} {p.side_label} {size} ({fmt_usdt(p.notional)} {info.quote_asset})"
-            f" @ {fmt_num(p.entry_price, info.price_precision)}"
-        )
-        if p.leverage:
-            message += f" · {p.leverage}x"
-    else:
-        message = f"{p.symbol} {p.side_label} {size}"
-        if notice.realized_pnl is not None:
-            message += f" · realized PnL: {fmt_signed(notice.realized_pnl)} {info.quote_asset}"
+    side = p.side_label
+    icon = "🟢" if side == "LONG" else "🔴"
+    action = "OPEN" if notice.opened else "CLOSE"
+    title = f"{icon} {action} {side} · {p.symbol} · {notice.account}"
+    lines = [
+        f"{side} · {p.leverage}x" if p.leverage else side,
+        f"Entry price: {fmt_num(p.entry_price, info.price_precision)}",
+        f"Size: {_size(abs(p.amount), info)}",
+        f"Size in {info.quote_asset}: {fmt_usdt(p.notional)}",
+    ]
+    notes: list[str] = []
+    if notice.realized_pnl is not None and not notice.opened:
+        notes.append(f"Realized PnL: {fmt_signed(notice.realized_pnl)} {info.quote_asset}")
     if notice.resync:
-        message += f" {RESYNC_LABEL}"
-    return title, message
+        notes.append(RESYNC_LABEL)
+    if notes:
+        lines += ["", *notes]
+    return title, "\n".join(lines)
 
 
 def format_account_down(account: str, error: str) -> str:

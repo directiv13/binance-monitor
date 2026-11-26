@@ -57,6 +57,9 @@ Only `.env.example` is committed. The app validates the config at startup and ex
 | `TELEGRAM_TOPIC_ID` | – | `message_thread_id` of the topic |
 | `ADMIN_IDS` | – | Comma-separated Telegram user ids allowed to run admin commands |
 | `PUSHOVER_APP_TOKEN` | – | Pushover application token |
+| `PUSHOVER_PRIORITY` | `2` | Pushover priority: `2` = emergency (repeats until acknowledged), `-2`…`1` = quieter levels |
+| `PUSHOVER_RETRY_SECONDS` | `60` | Emergency only: re-alert interval (Pushover minimum 30) |
+| `PUSHOVER_EXPIRE_SECONDS` | `3600` | Emergency only: stop re-alerting after this long (Pushover maximum 10800) |
 | `ENCRYPTION_KEY` | – | Fernet key for API keys/secrets (see above) |
 | `DB_PATH` | `/data/monitor.db` | SQLite file (WAL mode) |
 | `BINANCE_FAPI_URL` | `https://fapi.binance.com` | REST base URL |
@@ -97,15 +100,53 @@ Non-admins get "not allowed" and the attempt is logged.
 ## What gets posted
 
 ```
-🟢 NEW ORDER · main-acc
-BTCUSDT · OPEN LONG · LIMIT
-Price: 64,250.00 · Size: 0.015 BTC (963.75 USDT)
+🟢 CLOSE LONG ORDER · main-acc
+
+SKHYNIXUSDT · MARKET
+
+💲Price: market (~740.34000)
+🤑Size: 0.06 SKHYNIX
+💵Size in USDT: 44.42 USDT
+
+🟢 CLOSE LONG ORDER FILLED · main-acc
+
+SKHYNIXUSDT · MARKET
+
+💲Price: market (~741.70000)
+🤑Size: 0.06 SKHYNIX
+💵Size in USDT: 44.50 USDT
+✅Filled: 0.06
 
 📈 POSITION OPENED · main-acc
-ETHUSDT · SHORT · 2.5 ETH (8,120.40 USDT) @ 3,248.16 · 10x
+
+SKHYNIXUSDT · LONG · 5x
+
+💲Entry price: 735.71000
+🤑Size: 0.15 SKHYNIX
+💵Size in USDT: 109.93 USDT
 ```
 
-- **Orders:** `NEW` → *new order*; `AMENDMENT` → *updated*; final status `FILLED / CANCELED / EXPIRED / EXPIRED_IN_MATCH / REJECTED` → *removed (reason)*. **Partial fills are not posted**; they only update `filled_qty` and the pinned message.
+In order and position messages the symbol is sent as `<code>`, so tapping it copies it. Conditional orders add a `🛑Stop:` line.
+
+Pushover (emergency priority by default; 🟢 = long, 🔴 = short):
+
+```
+Title:   🟢 OPEN LONG · SKHYNIXUSDT · main-acc
+Message: LONG · 5x
+         Entry price: 735.71000
+         Size: 0.15 SKHYNIX
+         Size in USDT: 109.93
+
+Title:   🟢 CLOSE LONG · SKHYNIXUSDT · main-acc
+Message: LONG · 5x
+         Entry price: 735.71000
+         Size: 0.15 SKHYNIX
+         Size in USDT: 110.56
+
+         Realized PnL: +0.62 USDT
+```
+
+- **Orders:** `NEW` → *new order*; `AMENDMENT` → *updated*; final status `FILLED / CANCELED / EXPIRED / EXPIRED_IN_MATCH / REJECTED` → *removed*, the title ends with the outcome (`… ORDER FILLED`, `… ORDER CANCELED`, …). `❌` is used for canceled orders only; filled and triggered orders get `🟢`, expired / rejected / no longer open (found on resync) get `⚠️`. **Partial fills are not posted**; they only update `filled_qty` and the pinned message.
 - **Direction** (Open/Close Long/Short, Flip in one-way mode) is computed once, when the order is created, from the side / positionSide / reduceOnly / closePosition fields and the stored position, and reused for later messages.
 - **Positions** (from `ACCOUNT_UPDATE`): 0→non-zero = opened, non-zero→0 = closed, a one-way sign flip = closed then opened. Pure size changes only update the DB and the pinned message. Pushover is sent on open/close only. Realized PnL on close is summed from the closing trades' `rp` when available.
 - **Reconciliation** on every (re)connect and every `RECONCILE_SECONDS`: a fresh REST snapshot is diffed against the DB and anything missed is posted with `(detected on resync)`.

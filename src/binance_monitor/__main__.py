@@ -104,7 +104,14 @@ async def amain(settings: Settings) -> None:
     symbols = SymbolCache(BinanceClient(settings.binance_fapi_url, "", "", http))
     publisher = TelegramPublisher(bot, settings.telegram_chat_id, settings.telegram_topic_id)
     pinned = PinnedSummary(repos, publisher, symbols.get)
-    pushover = PushoverClient(http, settings.pushover_app_token, settings.pushover_api_url)
+    pushover = PushoverClient(
+        http,
+        settings.pushover_app_token,
+        settings.pushover_api_url,
+        priority=settings.pushover_priority,
+        retry_seconds=settings.pushover_retry_seconds,
+        expire_seconds=settings.pushover_expire_seconds,
+    )
     notifier = Notifier(
         publisher,
         PushoverBroadcaster(pushover, repos.subscribers),

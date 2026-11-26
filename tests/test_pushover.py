@@ -37,6 +37,22 @@ async def test_send_payload() -> None:
     body = route.calls[0].request.content.decode()
     assert "token=APPTOKEN" in body and "user=u1" in body
     assert "title=Title" in body and "message=Body+text" in body
+    # emergency by default: priority 2 with the mandatory retry/expire
+    assert "priority=2" in body and "retry=60" in body and "expire=3600" in body
+
+
+@respx.mock
+async def test_send_priority_is_configurable_and_retry_expire_only_for_emergency() -> None:
+    route = respx.post(f"{BASE}/1/messages.json").mock(return_value=httpx.Response(200, json=OK))
+    async with httpx.AsyncClient() as http:
+        quiet = PushoverClient(http, "T", BASE, priority=-1)
+        assert await quiet.send("u1", "Title", "Body") is PushoverResult.OK
+        custom = PushoverClient(http, "T", BASE, retry_seconds=30, expire_seconds=600)
+        assert await custom.send("u1", "Title", "Body") is PushoverResult.OK
+    quiet_body = route.calls[0].request.content.decode()
+    assert "priority=-1" in quiet_body and "retry" not in quiet_body and "expire" not in quiet_body
+    custom_body = route.calls[1].request.content.decode()
+    assert "priority=2" in custom_body and "retry=30" in custom_body and "expire=600" in custom_body
 
 
 @respx.mock
